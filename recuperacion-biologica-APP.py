@@ -140,15 +140,20 @@ df['Tiempo Legible'] = df['tiempo_horas'].apply(formato_tiempo)
 # --- VISUALIZACIÓN 1: TIMELINE DE LOGROS ---
 st.subheader("📍 Tu Mapa de Ruta")
 
+# 1. Agregamos los valores fijos como columnas al DataFrame
+df['Nivel'] = 1
+df['Tamaño_Punto'] = 20
+
+# 2. Generamos el gráfico referenciando los nombres de las columnas
 fig = px.scatter(
     df, 
     x="Fecha Hito", 
-    y=[1]*len(df), # Todo en una línea
+    y="Nivel",           # Usamos la columna en lugar de la lista
     color="Estado",
     hover_name="hito",
-    hover_data={"desc": True, "Fecha Hito": True, "y": False},
+    hover_data={"desc": True, "Fecha Hito": True, "Nivel": False, "Tamaño_Punto": False},
     color_discrete_map={'✅ Completado': '#2ecc71', '🔒 Pendiente': '#bdc3c7'},
-    size=[20]*len(df),
+    size="Tamaño_Punto", # Usamos la columna en lugar de la lista
     title="Línea de Tiempo de Recuperación"
 )
 
