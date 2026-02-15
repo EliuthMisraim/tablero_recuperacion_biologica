@@ -1,80 +1,95 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
-# =========================================
-# CONFIGURACIÓN DE LA PÁGINA
-# =========================================
+# --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(
-    page_title="Calculadora Costos Ocultos",
-    page_icon="🏢",
+    page_title="Tablero de Recuperación Biológica",
+    page_icon="🫁",
     layout="wide"
 )
 
-# =========================================
-# ESTILOS CSS PERSONALIZADOS (El Botón Mágico)
-# =========================================
+# --- ESTILOS CSS PERSONALIZADOS ---
 st.markdown("""
-<style>
-/* Animación de las olas de colores */
-@keyframes gradient-animation {
-    0% {background-position: 0% 50%;}
-    50% {background-position: 100% 50%;}
-    100% {background-position: 0% 50%;}
-}
+    <style>
+    .big-font { font-size:20px !important; }
+    .success-text { color: #2ecc71; font-weight: bold; }
+    .metric-card { background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #2ecc71; }
+    
+    /* Animación de las olas de colores para el botón */
+    @keyframes gradient-animation {
+        0% {background-position: 0% 50%;}
+        50% {background-position: 100% 50%;}
+        100% {background-position: 0% 50%;}
+    }
 
-/* Estilo del botón */
-.wave-btn {
-    display: block;
-    width: 100%;
-    padding: 12px 20px;
-    margin: 10px 0;
-    font-size: 16px;
-    font-weight: bold;
-    text-align: center;
-    color: white !important;
-    text-decoration: none !important;
-    border-radius: 8px;
-    /* Fondo base con gradiente multicolor */
-    background: linear-gradient(270deg, #FF512F, #DD2476, #40E0D0, #FF512F);
-    background-size: 300% 300%;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    transition: all 0.4s ease;
-    border: none;
-}
+    /* Estilo del botón */
+    .wave-btn {
+        display: block;
+        width: 100%;
+        padding: 12px 20px;
+        margin: 10px 0;
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        color: white !important;
+        text-decoration: none !important;
+        border-radius: 8px;
+        background: linear-gradient(270deg, #FF512F, #DD2476, #40E0D0, #FF512F);
+        background-size: 300% 300%;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: all 0.4s ease;
+        border: none;
+    }
 
-/* Efecto al pasar el mouse (Hover) */
-.wave-btn:hover {
-    /* Activar la animación de olas */
-    animation: gradient-animation 3s ease infinite;
-    /* Efecto de iluminación/resplandor */
-    box-shadow: 0 0 15px rgba(221, 36, 118, 0.6), 0 0 30px rgba(64, 224, 208, 0.4);
-    transform: scale(1.02); /* Crece un poquito */
-}
-</style>
-""", unsafe_allow_html=True)
+    /* Efecto al pasar el mouse (Hover) */
+    .wave-btn:hover {
+        animation: gradient-animation 3s ease infinite;
+        box-shadow: 0 0 15px rgba(221, 36, 118, 0.6), 0 0 30px rgba(64, 224, 208, 0.4);
+        transform: scale(1.02);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# =========================================
-# BARRA LATERAL (INPUTS, LOGO Y BOTÓN)
-# =========================================
+# --- DATOS MÉDICOS (Fuente: OMS / Cancer.org) ---
+# Definimos los hitos de recuperación en horas/días/años
+health_milestones = [
+    {"hito": "Presión arterial normalizada", "tiempo_horas": 0.33, "desc": "En 20 min, tu presión baja a niveles normales."},
+    {"hito": "Niveles de CO normalizados", "tiempo_horas": 12, "desc": "El monóxido de carbono en sangre baja a lo normal."},
+    {"hito": "Menor riesgo de infarto", "tiempo_horas": 24, "desc": "Tu riesgo de ataque cardíaco empieza a descender."},
+    {"hito": "Sentidos recuperados", "tiempo_horas": 48, "desc": "El olfato y el gusto comienzan a mejorar notablemente."},
+    {"hito": "Nicotina eliminada", "tiempo_horas": 72, "desc": "Tu cuerpo está 100% libre de nicotina física."},
+    {"hito": "Mejor circulación", "tiempo_horas": 2160, "desc": "3 Meses: Tu función pulmonar aumenta hasta un 30%."},
+    {"hito": "Cilios pulmonares recuperados", "tiempo_horas": 6570, "desc": "9 Meses: Menos tos y fatiga; los pulmones se limpian solos."},
+    {"hito": "Riesgo coronario a la mitad", "tiempo_horas": 8760, "desc": "1 Año: El riesgo de enfermedad coronaria es 50% menor."},
+    {"hito": "Riesgo de ACV igual a no fumador", "tiempo_horas": 43800, "desc": "5 Años: Las arterias se han sanado lo suficiente."},
+    {"hito": "Riesgo de cáncer pulmonar a la mitad", "tiempo_horas": 87600, "desc": "10 Años: Células precancerosas reemplazadas."},
+    {"hito": "Salud cardiovascular total", "tiempo_horas": 131400, "desc": "15 Años: Tu corazón es igual al de alguien que nunca fumó."}
+]
+
+# --- SIDEBAR: INPUTS DEL USUARIO ---
 with st.sidebar:
     # --- LOGO CENTRADO ---
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.image("logo.png", width=150)
         
-    st.header("⚙️ Parámetros de la Empresa")
+    st.header("⚙️ Configura tu Viaje")
     
-    moneda = st.selectbox("Moneda", ["$", "€", "S/", "MXN"], index=0)
+    fecha_inicio = st.date_input("¿Cuándo es tu 'Día Cero'?", datetime.now())
+    hora_inicio = st.time_input("Hora aproximada", datetime.now().time())
     
-    st.subheader("Datos de la Plantilla")
-    empleados = st.number_input("Total de Empleados", min_value=1, value=500, step=10)
-    salario_promedio = st.number_input(f"Salario Promedio Mensual ({moneda})", min_value=0, value=15000, step=500)
-    pct_fumadores = st.slider("% Estimado de Fumadores", 5, 60, 25, help="Porcentaje de la plantilla que consume tabaco") / 100
-
+    st.markdown("---")
+    st.subheader("Datos Financieros")
+    cigarros_dia = st.slider("Cigarros al día", 1, 40, 10)
+    precio_cajetilla = st.number_input("Precio Cajetilla ($)", value=75)
+    
     # --- LLAMADA A LA ACCIÓN ---
     st.markdown("---")
-    st.markdown("### ¿Listo para eliminar estos costos de tu nómina?")
+    st.markdown("### ¿Te cuesta empezar?")
+    st.info("**Grupo JD** tiene el método probado para que este contador empiece a correr hoy mismo.")
     
     # Botón HTML personalizado
     link_agenda = "https://meetings.hubspot.com/eliuth-misraim?uuid=169366e7-ae2e-4855-8083-cc554bb3db85"
@@ -84,112 +99,118 @@ with st.sidebar:
         </a>
     """, unsafe_allow_html=True)
 
-# =========================================
-# LÓGICA DE NEGOCIO (Cálculos)
-# =========================================
-def calcular_costo_tabaquismo(num_empleados, salario_mensual_promedio, porcentaje_fumadores):
-    # Constantes
-    MINUTOS_PERDIDOS_DIA = 60
-    DIAS_LABORALES_ANIO = 250
-    DIAS_EXTRA_AUSENTISMO = 3
+# --- LÓGICA DE CÁLCULO ---
+fecha_completa_inicio = datetime.combine(fecha_inicio, hora_inicio)
+ahora = datetime.now()
+diferencia = ahora - fecha_completa_inicio
+horas_transcurridas = diferencia.total_seconds() / 3600
+dias_transcurridos = diferencia.days
 
-    # Tasas
-    salario_diario = salario_mensual_promedio / 30
-    salario_hora = salario_diario / 8
-    salario_minuto = salario_hora / 60
+# --- HEADER PRINCIPAL ---
+st.title("🫁 Tu Cronograma de Regeneración Biológica")
+st.markdown(f"Has estado libre de humo por: **{max(0, dias_transcurridos)} días y {max(0, int((horas_transcurridas % 24)))} horas**.")
 
-    num_fumadores = int(num_empleados * porcentaje_fumadores)
+# --- METRICAS KPI ---
+col1, col2, col3 = st.columns(3)
+cigarros_evitados = max(0, dias_transcurridos * cigarros_dia)
+dinero_ahorrado = (cigarros_evitados / 20) * precio_cajetilla
+vida_ganada = cigarros_evitados * 11 # 11 minutos por cigarro aprox.
+vida_ganada_horas = vida_ganada / 60
 
-    # Costos
-    costo_pausas = (num_fumadores * MINUTOS_PERDIDOS_DIA * salario_minuto * DIAS_LABORALES_ANIO)
-    costo_absentismo = (num_fumadores * DIAS_EXTRA_AUSENTISMO * salario_diario)
-    costo_total = costo_pausas + costo_absentismo
+col1.metric("Cigarros Evitados", f"{cigarros_evitados:,.0f}", delta_color="normal")
+col2.metric("Dinero Ahorrado", f"${dinero_ahorrado:,.2f}", delta_color="normal")
+col3.metric("Vida Ganada (aprox)", f"{vida_ganada_horas:.1f} Horas", "Tiempo valioso")
 
-    return num_fumadores, costo_pausas, costo_absentismo, costo_total
+st.markdown("---")
 
-fumadores, costo_pausas, costo_absentismo, costo_total = calcular_costo_tabaquismo(empleados, salario_promedio, pct_fumadores)
+# --- PROCESAMIENTO DE DATOS PARA GRÁFICO ---
+df = pd.DataFrame(health_milestones)
+df['Fecha Hito'] = df['tiempo_horas'].apply(lambda x: fecha_completa_inicio + timedelta(hours=x))
+df['Estado'] = df['tiempo_horas'].apply(lambda x: '✅ Completado' if x <= horas_transcurridas else '🔒 Pendiente')
+df['Días Restantes'] = df['tiempo_horas'].apply(lambda x: max(0, (x - horas_transcurridas)/24))
 
-# =========================================
-# INTERFAZ PRINCIPAL
-# =========================================
-st.title("🏢 Calculadora de Costos Ocultos por Tabaquismo")
-st.markdown("""
-Las pausas para fumar y los días extra de enfermedad generan una fuga de capital silenciosa en tu organización. 
-Utiliza este simulador para estimar **cuánto dinero está perdiendo tu empresa cada año**.
-""")
+# Convertir a texto legible para el gráfico
+def formato_tiempo(horas):
+    if horas < 24: return f"{horas:.1f} Horas"
+    if horas < 8760: return f"{horas/24:.1f} Días"
+    return f"{horas/8760:.1f} Años"
 
-# --- SECCIÓN 1: MÉTRICAS CLAVE ---
-st.divider()
-col_m1, col_m2, col_m3 = st.columns(3)
+df['Tiempo Legible'] = df['tiempo_horas'].apply(formato_tiempo)
 
-with col_m1:
-    st.metric("Pérdida Total Anual Estimada", f"{moneda}{costo_total:,.0f}", delta="Costo Oculto", delta_color="inverse")
+# --- VISUALIZACIÓN 1: TIMELINE DE LOGROS ---
+st.subheader("📍 Tu Mapa de Ruta")
 
-with col_m2:
-    st.metric("Empleados Fumadores Estimados", f"{fumadores}", help=f"El {pct_fumadores*100:.0f}% de tu plantilla actual.")
-
-with col_m3:
-    costo_por_fumador = costo_total / fumadores if fumadores > 0 else 0
-    st.metric("Pérdida Anual por Fumador", f"{moneda}{costo_por_fumador:,.0f}")
-
-# --- SECCIÓN 2: GRÁFICO INTERACTIVO ---
-st.divider()
-st.subheader("📊 Desglose de Pérdidas Financieras")
-
-# Creamos el gráfico de barras con Plotly para que sea interactivo
-fig = go.Figure(data=[
-    go.Bar(
-        name='Pausas Laborales', 
-        x=['Pausas Laborales (Presentismo)'], 
-        y=[costo_pausas],
-        marker_color='#ff9999',
-        text=[f"{moneda}{costo_pausas:,.0f}"],
-        textposition='outside',
-        textfont=dict(size=14, color='#333333', family="Arial Black")
-    ),
-    go.Bar(
-        name='Absentismo Extra', 
-        x=['Días de Enfermedad (Ausentismo)'], 
-        y=[costo_absentismo],
-        marker_color='#66b3ff',
-        text=[f"{moneda}{costo_absentismo:,.0f}"],
-        textposition='outside',
-        textfont=dict(size=14, color='#333333', family="Arial Black")
-    )
-])
-
-# Estilización del gráfico
-salario_k = salario_promedio / 1000
-fig.update_layout(
-    title=dict(
-        text=f"<b>Costo Oculto Anual: {moneda}{costo_total:,.0f}</b><br><span style='font-size:14px; color:gray'>Empresa {empleados} empleados, Salario Prom. {moneda}{salario_k:.0f}k</span>",
-        font=dict(size=20, color='#333333')
-    ),
-    yaxis_title=f"Costo Anual ({moneda})",
-    template='plotly_white',
-    showlegend=False,
-    height=500,
-    margin=dict(t=80, b=40),
-    yaxis=dict(range=[0, max(costo_pausas, costo_absentismo) * 1.2], showgrid=True, gridcolor='#eeeeee') # Espacio extra arriba para los números
+fig = px.scatter(
+    df, 
+    x="Fecha Hito", 
+    y=[1]*len(df), # Todo en una línea
+    color="Estado",
+    hover_name="hito",
+    hover_data={"desc": True, "Fecha Hito": True, "y": False},
+    color_discrete_map={'✅ Completado': '#2ecc71', '🔒 Pendiente': '#bdc3c7'},
+    size=[20]*len(df),
+    title="Línea de Tiempo de Recuperación"
 )
+
+# Personalizar gráfico para que parezca un Roadmap
+fig.update_layout(
+    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+    xaxis=dict(title="Fecha Estimada"),
+    height=200,
+    plot_bgcolor='rgba(0,0,0,0)',
+    showlegend=True
+)
+
+# Agregar anotaciones para los hitos
+for i, row in df.iterrows():
+    color = "#27ae60" if row['Estado'] == '✅ Completado' else "#7f8c8d"
+    fig.add_annotation(
+        x=row['Fecha Hito'],
+        y=1,
+        text=row['Tiempo Legible'],
+        yshift=25,
+        showarrow=False,
+        font=dict(color=color, size=10)
+    )
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- SECCIÓN 3: INTERPRETACIÓN DE RESULTADOS ---
-st.divider()
-st.header("💡 Interpretación de tu Fuga de Capital")
+# --- VISUALIZACIÓN 2: DETALLE DE HITOS (TABLA/TARJETAS) ---
+col_izq, col_der = st.columns([1, 1])
 
-st.info(f"""
-**Análisis del impacto en tu organización:**
+with col_izq:
+    st.subheader("✅ Logros Desbloqueados")
+    desbloqueados = df[df['Estado'] == '✅ Completado']
+    if desbloqueados.empty:
+        st.warning("Aún no ha pasado suficiente tiempo. ¡Tu primer logro llega en 20 minutos!")
+    else:
+        for index, row in desbloqueados.iterrows():
+            st.success(f"**{row['hito']}**: {row['desc']}")
 
-1.  **El peso del Presentismo (Pausas):** * De los {moneda}{costo_total:,.0f} que pierdes al año, la mayor parte ({moneda}{costo_pausas:,.0f}) se debe a los **minutos acumulados en pausas para fumar**. 
-    * Si un empleado fuma y pierde 60 minutos al día, al final del año suma semanas enteras de tiempo no laborado pero sí pagado.
-
-2.  **El impacto del Ausentismo:**
-    * Fumar compromete el sistema inmunológico. Estadísticamente, los fumadores piden en promedio **3 días más por incapacidad o enfermedad** al año.
-    * Esto representa un costo extra directo a tu nómina de **{moneda}{costo_absentismo:,.0f}**.
-
-3.  **El Costo de no hacer nada:**
-    * Cada empleado fumador le está costando a la empresa **{moneda}{costo_por_fumador:,.0f} adicionales cada año**.
-    * Implementar un programa de cesación no es un "gasto de bienestar", es una **estrategia de reducción de costos operativos**. Recuperar a solo unos cuantos empleados ya paga cualquier inversión.
-""")
+with col_der:
+    st.subheader("🚀 Próximas Metas")
+    pendientes = df[df['Estado'] == '🔒 Pendiente']
+    if pendientes.empty:
+        st.balloons()
+        st.info("¡Felicidades! Has completado todos los hitos médicos principales.")
+    else:
+        # Mostramos el próximo hito con una barra de progreso
+        proximo = pendientes.iloc[0]
+        st.info(f"**Siguiente: {proximo['hito']}**")
+        st.write(f"_{proximo['desc']}_")
+        
+        # Calcular porcentaje para el próximo hito específico
+        hito_anterior_horas = 0 if len(desbloqueados) == 0 else desbloqueados.iloc[-1]['tiempo_horas']
+        meta_horas = proximo['tiempo_horas']
+        
+        # Evitar cálculos negativos si la fecha elegida es en el futuro
+        progreso_actual = max(0, horas_transcurridas - hito_anterior_horas)
+        progreso_total_tramo = meta_horas - hito_anterior_horas
+        
+        porcentaje = min(1.0, max(0.0, progreso_actual / progreso_total_tramo))
+        st.progress(porcentaje)
+        st.caption(f"Faltan {proximo['Días Restantes']:.1f} días para este logro.")
+        
+        # Lista del resto
+        with st.expander("Ver metas a largo plazo"):
+            st.table(pendientes.iloc[1:][['hito', 'Tiempo Legible']])
