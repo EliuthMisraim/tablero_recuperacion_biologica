@@ -84,7 +84,7 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("Datos Financieros")
     cigarros_dia = st.slider("Cigarros al día", 1, 40, 10)
-    precio_cajetilla = st.number_input("Precio Cajetilla ($)", value=75)
+    precio_cajetilla = st.number_input("Precio por Cajetilla 20 pz ($)", value=75)
     
     # --- LLAMADA A LA ACCIÓN ---
     st.markdown("---")
@@ -218,4 +218,5 @@ with col_der:
         
         # Lista del resto
         with st.expander("Ver metas a largo plazo"):
+
             st.table(pendientes.iloc[1:][['hito', 'Tiempo Legible']])
