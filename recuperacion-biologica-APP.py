@@ -149,43 +149,69 @@ df['Tiempo Legible'] = df['tiempo_horas'].apply(formato_tiempo)
 # --- VISUALIZACIÓN 1: TIMELINE DE LOGROS ---
 st.subheader("📍 Tu Mapa de Ruta")
 
-# 1. Agregamos los valores fijos como columnas al DataFrame
-df['Nivel'] = 1
-df['Tamaño_Punto'] = 20
+# 1. Crear columnas auxiliares para el gráfico
+df['Color'] = df['Estado'].apply(lambda x: '#2ecc71' if x == '✅ Completado' else '#bdc3c7')
+df['Fecha_Str'] = df['Fecha Hito'].dt.strftime('%d %b %Y, %H:%M')
 
-# 2. Generamos el gráfico referenciando los nombres de las columnas
-fig = px.scatter(
-    df, 
-    x="Fecha Hito", 
-    y="Nivel",           # Usamos la columna en lugar de la lista
-    color="Estado",
-    hover_name="hito",
-    hover_data={"desc": True, "Fecha Hito": True, "Nivel": False, "Tamaño_Punto": False},
-    color_discrete_map={'✅ Completado': '#2ecc71', '🔒 Pendiente': '#bdc3c7'},
-    size="Tamaño_Punto", # Usamos la columna en lugar de la lista
-    title="Línea de Tiempo de Recuperación"
-)
+# 2. Construir el gráfico con Plotly Graph Objects
+fig = go.Figure()
 
-# Personalizar gráfico para que parezca un Roadmap
-fig.update_layout(
-    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-    xaxis=dict(title="Fecha Estimada"),
-    height=200,
-    plot_bgcolor='rgba(0,0,0,0)',
-    showlegend=True
-)
+# Línea central (El "camino" con buen contraste)
+fig.add_trace(go.Scatter(
+    x=df.index,
+    y=[0] * len(df),
+    mode="lines",
+    line=dict(color="#7f8c8d", width=5), # Línea gris gruesa que contrasta bien
+    hoverinfo="skip",
+    showlegend=False
+))
 
-# Agregar anotaciones para los hitos
+# Puntos de los hitos
+fig.add_trace(go.Scatter(
+    x=df.index,
+    y=[0] * len(df),
+    mode="markers",
+    marker=dict(size=24, color=df['Color'], line=dict(color='white', width=3)),
+    customdata=df[['hito', 'desc', 'Tiempo Legible', 'Fecha_Str']].values,
+    hovertemplate=(
+        "<b>%{customdata[0]}</b><br>"
+        "%{customdata[1]}<br><br>"
+        "⏳ Meta: %{customdata[2]}<br>"
+        "📅 Fecha estimada: %{customdata[3]}"
+        "<extra></extra>"
+    ),
+    showlegend=False
+))
+
+# Textos alternados (Arriba y Abajo) para evitar amontonamiento
 for i, row in df.iterrows():
-    color = "#27ae60" if row['Estado'] == '✅ Completado' else "#7f8c8d"
+    # Alternar la altura: pares arriba, impares abajo
+    ay_val = -60 if i % 2 == 0 else 60
+    color_text = "#27ae60" if row['Estado'] == '✅ Completado' else "#7f8c8d"
+    
     fig.add_annotation(
-        x=row['Fecha Hito'],
-        y=1,
-        text=row['Tiempo Legible'],
-        yshift=25,
-        showarrow=False,
-        font=dict(color=color, size=10)
+        x=i,
+        y=0,
+        text=f"<b>{row['Tiempo Legible']}</b><br><span style='font-size:11px'>{row['hito']}</span>",
+        showarrow=True,
+        arrowhead=0,
+        arrowwidth=1.5,
+        arrowcolor="#bdc3c7",
+        ax=0,
+        ay=ay_val, # Mueve el texto arriba o abajo de la línea
+        font=dict(color=color_text, size=12),
+        align="center"
     )
+
+# Configuración del diseño
+fig.update_layout(
+    height=350,
+    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-0.5, len(df)-0.5]),
+    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-1.5, 1.5]),
+    plot_bgcolor='rgba(0,0,0,0)',
+    paper_bgcolor='rgba(0,0,0,0)',
+    margin=dict(t=20, b=20, l=10, r=10)
+)
 
 st.plotly_chart(fig, use_container_width=True)
 
@@ -229,4 +255,5 @@ with col_der:
         with st.expander("Ver metas a largo plazo"):
 
             st.table(pendientes.iloc[1:][['hito', 'Tiempo Legible']])
+
 
