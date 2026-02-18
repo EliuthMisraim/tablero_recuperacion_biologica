@@ -74,7 +74,7 @@ with st.sidebar:
     # --- LOGO CENTRADO ---
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("logo.png", width=150)
+        st.image("image_ef75e0.png", width=150)
         
     st.header("⚙️ Configura tu Viaje")
     
@@ -83,8 +83,14 @@ with st.sidebar:
     
     st.markdown("---")
     st.subheader("Datos Financieros")
+    
+    # --- NUEVO SELECTOR DE MONEDA ---
+    moneda = st.selectbox("Moneda", ["$", "€", "S/", "MXN"], index=0)
+    
     cigarros_dia = st.slider("Cigarros al día", 1, 40, 10)
-    precio_cajetilla = st.number_input("Precio por Cajetilla 20 pz ($)", value=75)
+    
+    # --- INPUT ACTUALIZADO CON LA MONEDA ---
+    precio_cajetilla = st.number_input(f"Precio Cajetilla ({moneda})", value=75)
     
     # --- LLAMADA A LA ACCIÓN ---
     st.markdown("---")
@@ -118,7 +124,10 @@ vida_ganada = cigarros_evitados * 11 # 11 minutos por cigarro aprox.
 vida_ganada_horas = vida_ganada / 60
 
 col1.metric("Cigarros Evitados", f"{cigarros_evitados:,.0f}", delta_color="normal")
-col2.metric("Dinero Ahorrado", f"${dinero_ahorrado:,.2f}", delta_color="normal")
+
+# --- MÉTRICA ACTUALIZADA CON LA MONEDA ---
+col2.metric("Dinero Ahorrado", f"{moneda}{dinero_ahorrado:,.2f}", delta_color="normal")
+
 col3.metric("Vida Ganada (aprox)", f"{vida_ganada_horas:.1f} Horas", "Tiempo valioso")
 
 st.markdown("---")
@@ -218,5 +227,4 @@ with col_der:
         
         # Lista del resto
         with st.expander("Ver metas a largo plazo"):
-
             st.table(pendientes.iloc[1:][['hito', 'Tiempo Legible']])
