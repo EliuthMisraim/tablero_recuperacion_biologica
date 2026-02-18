@@ -74,7 +74,7 @@ with st.sidebar:
     # --- LOGO CENTRADO ---
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("image_ef75e0.png", width=150)
+        st.image("logo.png", width=150)
         
     st.header("⚙️ Configura tu Viaje")
     
@@ -227,4 +227,5 @@ with col_der:
         
         # Lista del resto
         with st.expander("Ver metas a largo plazo"):
+
             st.table(pendientes.iloc[1:][['hito', 'Tiempo Legible']])
